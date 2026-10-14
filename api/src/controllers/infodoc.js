@@ -1,5 +1,6 @@
 const db = require('../db');
 const infodoc = require('@medic/infodoc');
+const logger = require('@medic/logger');
 infodoc.initLib(db.medic, db.sentinel);
 
 module.exports = {
@@ -13,7 +14,14 @@ module.exports = {
       let body = Buffer.from('');
       proxyRes.on('data', data => (body = Buffer.concat([body, data])));
       proxyRes.on('end', () => {
-        body = JSON.parse(body.toString());
+        try {
+          body = JSON.parse(body.toString());
+        } catch (err) {
+          // The response is still streamed to the client by the proxy. Do not let an invalid
+          // upstream error response crash the process while recording this optional side effect.
+          logger.error('Unable to parse CouchDB response for infodoc update: %o', err);
+          return;
+        }
 
         if (body.id && body.ok && !req.body._deleted) {
           // Single successful write

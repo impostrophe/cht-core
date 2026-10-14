@@ -1127,12 +1127,17 @@ proxyForAuth.on('proxyRes', (proxyRes, req, res) => {
     return serverUtils.notLoggedIn(req, res);
   }
 
-  copyProxyHeaders(proxyRes, res);
   let body = Buffer.from('');
   proxyRes.on('data', data => (body = Buffer.concat([body, data])));
 
   proxyRes.on('end', () => {
-    body = JSON.parse(body.toString());
+    try {
+      body = JSON.parse(body.toString());
+    } catch (err) {
+      return serverUtils.serverError(err, req, res);
+    }
+
+    copyProxyHeaders(proxyRes, res);
     if (res.interceptResponse) {
       body = res.interceptResponse(req, res, body);
     }
